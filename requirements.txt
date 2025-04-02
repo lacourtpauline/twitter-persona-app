@@ -6,4 +6,5 @@ openai==1.66.3
 requests
 beautifulsoup4
 altair
-
+scipy
+statsmodels
