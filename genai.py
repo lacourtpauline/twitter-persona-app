@@ -1,126 +1,39 @@
-import os
-import openai
-import json
-import pandas as pd
+from openai import OpenAI
 import requests
-import time
-import re
-import openai
-
-
+from bs4 import BeautifulSoup
 
 class GenAI:
-    """
-    A class for interacting with the OpenAI API to generate text, images, video descriptions,
-    perform speech recognition, and handle basic document processing tasks.
+    def __init__(self):
+        self.client = OpenAI()
 
-    Attributes:
-    ----------
-    client : openai.Client
-        An instance of the OpenAI client initialized with the API key.
-    """
-    def __init__(self, openai_api_key):
-        """
-        Initializes the GenAI class with the provided OpenAI API key.
-
-        Parameters:
-        ----------
-        openai_api_key : str
-            The API key for accessing OpenAI's services.
-        """
-        self.client = openai.Client(api_key=openai_api_key)
-        self.openai_api_key = openai_api_key
-
-    def generate_text(self, prompt, instructions='You are a helpful AI named Jarvis', model="gpt-4o-mini", output_type='text', temperature =1):
-        """
-        Generates a text completion using the OpenAI API.
-
-        This function sends a prompt to the OpenAI API with optional instructions to guide the AI's behavior. 
-        It supports specifying the model and output format, and returns the generated text response.
-
-        Parameters:
-        ----------
-        prompt : str
-            The user input or query that you want the AI to respond to.
-        
-        instructions : str, optional (default='You are a helpful AI named Jarvis')
-            System-level instructions to define the AI's behavior, tone, or style in the response.
-        
-        model : str, optional (default='gpt-4o-mini')
-            The OpenAI model to use for generating the response. You can specify different models like 'gpt-4', 'gpt-3.5-turbo', etc.
-        
-        output_type : str, optional (default='text')
-            The format of the output. Typically 'text', but can be customized for models that support different response formats.
-
-        Returns:
-        -------
-        str
-            The AI-generated response as a string based on the provided prompt and instructions.
-
-        Example:
-        -------
-        >>> response = generate_text("What's the weather like today?")
-        >>> print(response)
-        "The weather today is sunny with a high of 75°F."
-        """
-        completion = self.client.chat.completions.create(
-            model=model,
-            temperature=temperature,
-            response_format={"type": output_type},
-            messages=[
-                {"role": "system", "content": instructions},
-                {"role": "user", "content": prompt}
-            ]
+    def generate_text(self, prompt):
+        response = self.client.chat.completions.create(
+            model="gpt-3.5-turbo",
+            messages=[{"role": "user", "content": prompt}],
+            temperature=0.7
         )
-        response = completion.choices[0].message.content
-        response = response.replace("```html", "")
-        response = response.replace("```", "")
-        return response
+        return response.choices[0].message.content
 
+    def display_tweet(self, topic, df, engagement_summary):
+        if topic.startswith("http"):
+            try:
+                html = requests.get(topic).text
+                soup = BeautifulSoup(html, "html.parser")
+                topic_text = soup.title.string if soup.title else topic
+            except:
+                topic_text = topic
+        else:
+            topic_text = topic
 
- 
+        prompt = f"Using the voice of the following user's tweets and this engagement analysis:\n\n{engagement_summary}\n\nWrite a new tweet on the topic: {topic_text}\n\nHere are some sample tweets:\n"
+        for _, row in df[['text', 'engagement']].head(10).iterrows():
+            prompt += f"Tweet: {row['text']}\nEngagement: {row['engagement']:.4f}\n"
 
-    def remove_urls(self, text):
-        url_pattern = re.compile(r'https?://\S+|www\.\S+')
-        return url_pattern.sub(r'', text)
+        tweet_text = self.generate_text(prompt)
 
-    def display_tweet(self,text='life is good', screen_name='AI Persona'):
-        display_html = f'''
-        <!DOCTYPE html>
-        <html>
-        <head>
-            <style>
-                .tweet {{
-                    background-color: white;
-                    color: black;
-                    border: 1px solid #e1e8ed;
-                    border-radius: 10px;
-                    padding: 20px;
-                    max-width: 500px;
-                    margin: 20px auto;
-                    font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
-                    box-shadow: 0px 0px 10px rgba(0,0,0,0.1);
-                }}
-                .user strong {{
-                    color: #1da1f2;
-                }}
-                .tweet-text p {{
-                    margin: 0;
-                    line-height: 1.5;
-                }}
-            </style>
-        </head>
-        <body>
-            <div class="tweet">
-                <div class="user">
-                    <strong>@{screen_name}</strong>
-                </div>
-                <div class="tweet-text">
-                    <p>{text}</p>
-                </div>
-            </div>
-        </body>
-        </html>
+        return f'''
+        <div style="background:#15202B;padding:20px;border-radius:10px;color:white;font-family:sans-serif;">
+            <p style="font-size:1.2em;">{tweet_text}</p>
+            <p style="color:#8899A6;font-size:0.9em;">Generated Persona Tweet</p>
+        </div>
         '''
-       
-        return display_html
