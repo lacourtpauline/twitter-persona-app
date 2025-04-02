@@ -1,10 +1,12 @@
-from openai import OpenAI
+import os
 import requests
 from bs4 import BeautifulSoup
+import streamlit as st
+from openai import OpenAI
 
 class GenAI:
     def __init__(self):
-        self.client = OpenAI()
+        self.client = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
 
     def generate_text(self, prompt):
         response = self.client.chat.completions.create(
@@ -37,3 +39,4 @@ class GenAI:
             <p style="color:#8899A6;font-size:0.9em;">Generated Persona Tweet</p>
         </div>
         '''
+
